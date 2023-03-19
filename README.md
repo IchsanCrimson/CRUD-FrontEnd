@@ -1,4 +1,10 @@
-# training
+# Training CRUD
+
+Frontend run on: http://localhost:8080/
+Backend Repository: https://github.com/IchsanCrimson/CRUD-BackEnd
+
+![image](https://user-images.githubusercontent.com/87750410/226195049-1334ac62-a1f3-4b1a-ac03-2d9205198645.png)
+
 
 ## Project setup
 ```
