@@ -58,6 +58,7 @@ export default {
     }
   },
   methods: {
+    // Component Methods
     clickKecamatan() {
       if (this.visibleKecamatanInfo) {
         this.visibleKecamatanInfo = false;
@@ -65,6 +66,13 @@ export default {
         this.loadKecamatanInfo();
       }
     },
+    childUpdatedReloadByParent(data) {
+      if (this.visibleKecamatanInfo && data.kecamatan) {
+        this.visibleKecamatanInfo = false;
+      }
+    },
+
+    // API Methods
     loadKecamatanInfo() {
       kecamatan.info(this.kecamatanId)
         .then(response => this.successGetKecamatanInfo(response.data))
@@ -117,11 +125,6 @@ export default {
     },
     failDeleteKecamatan(response) {
       console.log('fail', response);
-    },
-    childUpdatedReloadByParent(data) {
-      if (this.visibleKecamatanInfo && data.kecamatan) {
-        this.visibleKecamatanInfo = false;
-      }
     }
   }
 }

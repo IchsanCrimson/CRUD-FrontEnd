@@ -157,6 +157,7 @@ export default {
     }
   },
   methods: {
+    // Component Methods
     onContainerClick() {
       this.$emit('onContainerClick');
       this.resetErrorMsg();
@@ -188,28 +189,6 @@ export default {
       if (this.isKecamatanMenu) {
         this.loadKabupatenList(value.id);
       }
-    },
-    loadProvinsiList() {
-      provinsi.getAll()
-        .then(response => this.successGetAllProvisni(response.data))
-        .catch(this.failGetAllProvinsi);
-    },
-    successGetAllProvisni(data) {
-      this.provinsiList = data;
-    },
-    failGetAllProvinsi(response) {
-      console.log('fail', response);
-    },
-    loadKabupatenList(id) {
-      kabupaten.getAllWithProvinsiId({ provinsiId: id })
-        .then(response => this.successGetAllKabupaten(response.data))
-        .catch(response => this.failGetAllKabupaten(response));
-    },
-    successGetAllKabupaten(data) {
-      this.kabupatenList = data;
-    },
-    failGetAllKabupaten(response) {
-      console.log('fail', response);
     },
     emitUpdateDataProvinsi(data) {
       this.collectedUpdateData = {
@@ -252,6 +231,30 @@ export default {
     },
     resetErrorMsg() {
       this.$emit('clearErrorMsg');
+    },
+
+    // API Methods
+    loadProvinsiList() {
+      provinsi.getAll()
+        .then(response => this.successGetAllProvisni(response.data))
+        .catch(this.failGetAllProvinsi);
+    },
+    successGetAllProvisni(data) {
+      this.provinsiList = data;
+    },
+    failGetAllProvinsi(response) {
+      console.log('fail', response);
+    },
+    loadKabupatenList(id) {
+      kabupaten.getAllWithProvinsiId({ provinsiId: id })
+        .then(response => this.successGetAllKabupaten(response.data))
+        .catch(response => this.failGetAllKabupaten(response));
+    },
+    successGetAllKabupaten(data) {
+      this.kabupatenList = data;
+    },
+    failGetAllKabupaten(response) {
+      console.log('fail', response);
     }
   }
 }
