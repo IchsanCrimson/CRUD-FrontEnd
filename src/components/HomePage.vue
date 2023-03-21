@@ -80,6 +80,27 @@ export default {
     ...mapGetters(useMenuStore, ['isProvinsiMenu'])
   },
   methods: {
+    // Component Methods
+    childUpdatedReload(data) {
+      if (data.kecamatan) {
+        const idx = this.provinsiList.findIndex((provinsi) => provinsi.id == data.provinsi.id);
+        this.$refs.provinsiRefs[idx].childUpdatedReloadByParent(data);
+      } else if (data.kabupaten) {
+        const idx = this.provinsiList.findIndex((provinsi) => provinsi.id == data.provinsi.id);
+        this.$refs.provinsiRefs[idx].childUpdatedReloadByParent(data);
+      } else if (data.provinsi) {
+        this.loadProvinsiList()
+          .then(() => {
+            const idx = this.provinsiList.findIndex((provinsi) => provinsi.id == data.provinsi.id);
+            this.$refs.provinsiRefs[idx].childUpdatedReloadByParent(data)
+          });
+      }
+    },
+    resetErrorMsgAdd() {
+      this.errorMsgAdd = '';
+    },
+
+    // API Methods
     loadProvinsiList() {
       return provinsi.getAll()
         .then(response => this.successGetAllProvisni(response.data))
@@ -107,24 +128,6 @@ export default {
     },
     failAddProvinsi(response) {
       this.errorMsgAdd = response.response.data;
-    },
-    childUpdatedReload(data) {
-      if (data.kecamatan) {
-        const idx = this.provinsiList.findIndex((provinsi) => provinsi.id == data.provinsi.id);
-        this.$refs.provinsiRefs[idx].childUpdatedReloadByParent(data);
-      } else if (data.kabupaten) {
-        const idx = this.provinsiList.findIndex((provinsi) => provinsi.id == data.provinsi.id);
-        this.$refs.provinsiRefs[idx].childUpdatedReloadByParent(data);
-      } else if (data.provinsi) {
-        this.loadProvinsiList()
-          .then(() => {
-            const idx = this.provinsiList.findIndex((provinsi) => provinsi.id == data.provinsi.id);
-            this.$refs.provinsiRefs[idx].childUpdatedReloadByParent(data)
-          });
-      }
-    },
-    resetErrorMsgAdd() {
-      this.errorMsgAdd = '';
     }
   },
   watch: {

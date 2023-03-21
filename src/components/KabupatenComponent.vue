@@ -109,6 +109,40 @@ export default {
     }
   },
   methods: {
+    // Component Methods
+    clickKabupaten() {
+      this.resetErrorMsgAdd();
+      if (this.isKecamatanMenu) {
+        this.visibleKecamatanList = !this.visibleKecamatanList;
+        this.loadKecamatanList();
+      } else {
+        if (this.visibleKabupatenInfo) {
+          this.visibleKabupatenInfo = false;
+        } else {
+          this.loadKabupatenInfo();
+        }
+      }
+    },
+    childUpdatedReload(data) {
+      this.$emit('childUpdated', data);
+      this.loadKecamatanList();
+    },
+    childUpdatedReloadByParent(data) {
+      if (this.visibleKecamatanList && data.kecamatan) {
+        this.loadKecamatanList()
+          .then(() => {
+            const idx = this.kecamatanList.findIndex((kecamatan) => kecamatan.id == data.kecamatan.id);
+            this.$refs.kecamatanRefs[idx].childUpdatedReloadByParent(data);
+          });
+      } else if (this.visibleKabupatenInfo && data.kabupaten) {
+        this.visibleKabupatenInfo = false;
+      }
+    },
+    resetErrorMsgAdd() {
+      this.errorMsgAdd = '';
+    },
+
+    // API Methods
     loadKecamatanList() {
       return kecamatan.getAllWithKabupatenId({ kabupatenId: this.kabupatenId })
         .then(response => this.successGetAllKecamatan(response.data))
@@ -141,19 +175,6 @@ export default {
     },
     failGetKabupatenInfo(response) {
       console.log('fail', response);
-    },
-    clickKabupaten() {
-      this.resetErrorMsgAdd();
-      if (this.isKecamatanMenu) {
-        this.visibleKecamatanList = !this.visibleKecamatanList;
-        this.loadKecamatanList();
-      } else {
-        if (this.visibleKabupatenInfo) {
-          this.visibleKabupatenInfo = false;
-        } else {
-          this.loadKabupatenInfo();
-        }
-      }
     },
     addKecamatan(name) {
       const data = {
@@ -199,24 +220,6 @@ export default {
     },
     failDeleteKabupaten(response) {
       console.log('fail', response);
-    },
-    childUpdatedReload(data) {
-      this.$emit('childUpdated', data);
-      this.loadKecamatanList();
-    },
-    childUpdatedReloadByParent(data) {
-      if (this.visibleKecamatanList && data.kecamatan) {
-        this.loadKecamatanList()
-          .then(() => {
-            const idx = this.kecamatanList.findIndex((kecamatan) => kecamatan.id == data.kecamatan.id);
-            this.$refs.kecamatanRefs[idx].childUpdatedReloadByParent(data);
-          });
-      } else if (this.visibleKabupatenInfo && data.kabupaten) {
-        this.visibleKabupatenInfo = false;
-      }
-    },
-    resetErrorMsgAdd() {
-      this.errorMsgAdd = '';
     }
   },
   watch: {

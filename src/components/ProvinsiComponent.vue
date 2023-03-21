@@ -107,6 +107,50 @@ export default {
     }
   },
   methods: {
+    // Component Methods
+    clickProvinsi() {
+      this.resetErrorMsgAdd();
+      if (!this.isProvinsiMenu) {
+        this.visibleKabupatenList = !this.visibleKabupatenList;
+        this.loadKabupatenList();
+      } else {
+        this.loadProvinsiInfo();
+        this.visibleProvinsiInfo = !this.visibleProvinsiInfo;
+      }
+    },
+    childUpdatedReload(data) {
+      this.$emit('childUpdated', data);
+      if (!data.kecamatan) {
+        this.loadKabupatenList();
+      }
+    },
+    childUpdatedReloadByParent(data) {
+      if (this.visibleKabupatenList && data.kecamatan) {
+        const idx = this.kabupatenList.findIndex((kabupaten) => kabupaten.id == data.kabupaten.id);
+        this.$refs.kabupatenRefs[idx].childUpdatedReloadByParent(data);
+      } else if (this.visibleKabupatenList && data.kabupaten) {
+        this.loadKabupatenList()
+          .then(() => {
+            const idx = this.kabupatenList.findIndex((kabupaten) => kabupaten.id == data.kabupaten.id);
+            this.$refs.kabupatenRefs[idx].childUpdatedReloadByParent(data);
+          });
+      } else if (this.visibleProvinsiInfo && data.provinsi) {
+        this.visibleProvinsiInfo = false;
+      }
+    },
+    resetErrorMsgAdd() {
+      this.errorMsgAdd = '';
+    },
+
+    // API Methods
+    loadProvinsiInfo() {
+      this.provinsiInfo = {
+        provinsi: {
+          id: this.provinsiId,
+          name: this.provinsiName
+        }
+      }
+    },
     loadKabupatenList() {
       return kabupaten.getAllWithProvinsiId({ provinsiId: this.provinsiId })
         .then(response => this.successGetAllKabupaten(response.data))
@@ -118,21 +162,6 @@ export default {
     },
     failGetAllKabupaten() {
       this.visibleReload = true;
-    },
-    clickProvinsi() {
-      this.resetErrorMsgAdd();
-      if (!this.isProvinsiMenu) {
-        this.visibleKabupatenList = !this.visibleKabupatenList;
-        this.loadKabupatenList();
-      } else {
-        this.provinsiInfo = {
-          provinsi: {
-            id: this.provinsiId,
-            name: this.provinsiName
-          }
-        }
-        this.visibleProvinsiInfo = !this.visibleProvinsiInfo;
-      }
     },
     addKabupaten(name) {
       const data = {
@@ -177,29 +206,6 @@ export default {
     },
     failDeleteProvinsi(response) {
       console.log('fail', response);
-    },
-    childUpdatedReload(data) {
-      this.$emit('childUpdated', data);
-      if (!data.kecamatan) {
-        this.loadKabupatenList();
-      }
-    },
-    childUpdatedReloadByParent(data) {
-      if (this.visibleKabupatenList && data.kecamatan) {
-        const idx = this.kabupatenList.findIndex((kabupaten) => kabupaten.id == data.kabupaten.id);
-        this.$refs.kabupatenRefs[idx].childUpdatedReloadByParent(data);
-      } else if (this.visibleKabupatenList && data.kabupaten) {
-        this.loadKabupatenList()
-          .then(() => {
-            const idx = this.kabupatenList.findIndex((kabupaten) => kabupaten.id == data.kabupaten.id);
-            this.$refs.kabupatenRefs[idx].childUpdatedReloadByParent(data);
-          });
-      } else if (this.visibleProvinsiInfo && data.provinsi) {
-        this.visibleProvinsiInfo = false;
-      }
-    },
-    resetErrorMsgAdd() {
-      this.errorMsgAdd = '';
     }
   },
   watch: {
