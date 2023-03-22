@@ -9,20 +9,20 @@
         :info-data="kecamatanInfo"
         :custom-grid-template-columns="customGridTemplateColumns"
         :custom-margin-left="customMarginLeft"
-        :error-msg="errorMsgUpdate"
+        :error-msg="errorMsg.update"
         @onContainerClick="clickKecamatan"
         @onUpdateClick="updateKecamatan"
         @onDeleteClick="deleteKecamatan"
-        @clearErrorMsg="errorMsgUpdate = ''"
+        @clearErrorMsg="resetErrorMsg"
     />
   </div>
 </template>
 
 <script>
-import ContainerTemplate from "@/components/ContainerTemplate";
+import ContainerTemplate from "@/components/template/ContainerTemplate";
 
-import { mapGetters } from 'pinia';
-import { useMenuStore } from "@/store/index";
+import { mapActions, mapState, mapGetters } from 'pinia';
+import { useMenuStore, useKecamatanStore } from "@/store";
 import { kecamatan } from "@/utils/api";
 
 export default {
@@ -37,7 +37,6 @@ export default {
   },
   data() {
     return {
-      visibleKecamatanInfo: false,
       kecamatanInfo: {},
       customGridTemplateColumns: {
         'grid-template-columns': '25% 65% 10%'
@@ -45,31 +44,42 @@ export default {
       customMarginLeft: {
         'margin-left': '4%'
       },
-      errorMsgUpdate: ''
+      errorMsg: {}
     }
+  },
+  created() {
+    if (this.visibleKecamatanInfo) {
+      this.loadKecamatanInfo();
+    }
+  },
+  beforeUnmount() {
+    this.$emit('onUmount', this.kecamatanId);
   },
   computed: {
     ...mapGetters(useMenuStore, ['isKecamatanMenu']),
+    ...mapState(useKecamatanStore, ['visibleKecamatanInfoList']),
     kecamatanId() {
       return this.kecamatanData.id;
     },
     kecamatanName() {
       return this.kecamatanData.name;
+    },
+    visibleKecamatanInfo() {
+      return this.visibleKecamatanInfoList[this.kecamatanId];
     }
   },
   methods: {
     // Component Methods
+    ...mapActions(useKecamatanStore, ['triggerReloadKecamatanList', 'updateVisibleKecamatanInfo', 'removeVisibleKecamatanInfo']),
     clickKecamatan() {
       if (this.visibleKecamatanInfo) {
-        this.visibleKecamatanInfo = false;
+        this.updateVisibleKecamatanInfo(this.kecamatanId, false);
       } else {
         this.loadKecamatanInfo();
       }
     },
-    childUpdatedReloadByParent(data) {
-      if (this.visibleKecamatanInfo && data.kecamatan) {
-        this.visibleKecamatanInfo = false;
-      }
+    resetErrorMsg() {
+      this.errorMsg = {};
     },
 
     // API Methods
@@ -93,7 +103,7 @@ export default {
           name:  data.name
         }
       };
-      this.visibleKecamatanInfo = true;
+      this.updateVisibleKecamatanInfo(this.kecamatanId, true);
     },
     failGetKecamatanInfo(response) {
       console.log('fail', response);
@@ -104,15 +114,15 @@ export default {
         newKecamatanName: data.kecamatan.name
       };
       kecamatan.update(data.kecamatan.id, requestBody)
-        .then(() => this.successUpdateKecamatan(data))
+        .then(() => this.successUpdateKecamatan(requestBody.kabupatenId))
         .catch(this.failUpdateKecamatan);
     },
-    successUpdateKecamatan(data) {
-      this.$emit('childUpdated', data);
-      this.visibleKecamatanInfo = false;
+    successUpdateKecamatan(newId) {
+      const oldId = this.kecamatanInfo.kabupaten.id;
+      this.triggerReloadKecamatanList({old: oldId, new: newId});
     },
     failUpdateKecamatan(response) {
-      this.errorMsgUpdate = response.response.data;
+      this.errorMsg.update = response.response.data;
     },
     deleteKecamatan() {
       kecamatan.delete(this.kecamatanId)
@@ -120,11 +130,19 @@ export default {
         .catch(this.failDeleteKecamatan);
     },
     successDeleteKecamatan() {
-      this.$emit('childDeleted');
-      this.visibleKecamatanInfo = false;
+      const kabupatenId = this.kecamatanInfo.kabupaten.id;
+      this.triggerReloadKecamatanList({old: kabupatenId, new: kabupatenId});
+      this.removeVisibleKecamatanInfo(this.kecamatanId);
     },
     failDeleteKecamatan(response) {
       console.log('fail', response);
+    }
+  },
+  watch: {
+    kecamatanData() {
+      if (this.visibleKecamatanInfo) {
+        this.loadKecamatanInfo();
+      }
     }
   }
 }

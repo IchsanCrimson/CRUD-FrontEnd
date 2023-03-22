@@ -98,11 +98,12 @@
 </template>
 
 <script>
-import InfoTemplate from "@/components/InfoTemplate";
+import InfoTemplate from "@/components/template/InfoTemplate";
+import InfoEditTemplate from "@/components/template/InfoEditTemplate";
+
 import {mapGetters} from "pinia/dist/pinia";
 import {useMenuStore} from "@/store";
 import {kabupaten, provinsi} from "@/utils/api";
-import InfoEditTemplate from "@/components/InfoEditTemplate";
 
 export default {
   name: "ContainerTemplate",

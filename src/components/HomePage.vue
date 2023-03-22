@@ -10,9 +10,6 @@
               v-for="(provinsiData, idx) in provinsiList"
               :key="idx"
               :provinsi-data="provinsiData"
-              @child-updated="childUpdatedReload"
-              @child-deleted="loadProvinsiList"
-              ref="provinsiRefs"
           />
         </div>
         <ReloadTemplate
@@ -32,7 +29,7 @@
             :unique-id="'provinsi'"
             :custom-margin-left="customProvinsiMarginLeft"
             :custom-grid-template-columns="customProvinsiGridTemplateColumns"
-            :error-msg="errorMsgAdd"
+            :error-msg="errorMsg.add"
             @onAddClick="addProvinsi"
         />
       </div>
@@ -43,14 +40,14 @@
 <script>
 import HeaderComponent from "@/components/HeaderComponent";
 import ProvinsiComponent from "@/components/ProvinsiComponent";
-import AddDataContainerTemplate from "@/components/AddDataContainerTemplate";
+import AddDataContainerTemplate from "@/components/template/AddDataContainerTemplate";
 import MenuOptions from "@/components/MenuOptions";
-import EmptyTemplate from "@/components/EmptyTemplate";
-import ReloadTemplate from "@/components/ReloadTemplate";
+import EmptyTemplate from "@/components/template/EmptyTemplate";
+import ReloadTemplate from "@/components/template/ReloadTemplate";
 
 import { provinsi } from "@/utils/api";
-import { mapGetters } from 'pinia';
-import { useMenuStore } from "@/store/index";
+import { mapActions, mapGetters, mapState } from 'pinia';
+import { useMenuStore, useProvinsiStore } from "@/store";
 
 export default {
   name: 'HomePage',
@@ -69,7 +66,7 @@ export default {
         'grid-template-columns': '15% 75% 10%'
       },
       customProvinsiMarginLeft: {},
-      errorMsgAdd: '',
+      errorMsg: {},
       visibleReload: false
     }
   },
@@ -77,37 +74,24 @@ export default {
     this.loadProvinsiList();
   },
   computed: {
+    ...mapState(useProvinsiStore, ['reloadProvinsiList']),
     ...mapGetters(useMenuStore, ['isProvinsiMenu'])
   },
   methods: {
     // Component Methods
-    childUpdatedReload(data) {
-      if (data.kecamatan) {
-        const idx = this.provinsiList.findIndex((provinsi) => provinsi.id == data.provinsi.id);
-        this.$refs.provinsiRefs[idx].childUpdatedReloadByParent(data);
-      } else if (data.kabupaten) {
-        const idx = this.provinsiList.findIndex((provinsi) => provinsi.id == data.provinsi.id);
-        this.$refs.provinsiRefs[idx].childUpdatedReloadByParent(data);
-      } else if (data.provinsi) {
-        this.loadProvinsiList()
-          .then(() => {
-            const idx = this.provinsiList.findIndex((provinsi) => provinsi.id == data.provinsi.id);
-            this.$refs.provinsiRefs[idx].childUpdatedReloadByParent(data)
-          });
-      }
-    },
-    resetErrorMsgAdd() {
-      this.errorMsgAdd = '';
+    ...mapActions(useProvinsiStore, ['triggerReloadProvinsiList']),
+    resetErrorMsg() {
+      this.errorMsg = {};
     },
 
     // API Methods
     loadProvinsiList() {
-      return provinsi.getAll()
+      provinsi.getAll()
         .then(response => this.successGetAllProvisni(response.data))
         .catch(this.failGetAllProvinsi);
     },
     successGetAllProvisni(data) {
-      this.provinsiList = data;
+      this.provinsiList = data; 
       this.visibleReload = false;
     },
     failGetAllProvinsi() {
@@ -123,16 +107,19 @@ export default {
         .catch(this.failAddProvinsi);
     },
     successAddProvisni() {
-      this.loadProvinsiList();
-      this.resetErrorMsgAdd();
+      this.triggerReloadProvinsiList();
+      this.resetErrorMsg();
     },
     failAddProvinsi(response) {
-      this.errorMsgAdd = response.response.data;
+      this.errorMsg.add = response.response.data;
     }
   },
   watch: {
     isProvinsiMenu() {
-      this.resetErrorMsgAdd();
+      this.resetErrorMsg();
+    },
+    reloadProvinsiList() {
+      this.loadProvinsiList();
     }
   }
 }
