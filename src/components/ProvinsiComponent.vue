@@ -9,11 +9,11 @@
       :info-data="provinsiInfo"
       :custom-grid-template-columns="customGridTemplateColumns"
       :custom-margin-left="customMarginLeft"
-      :error-msg="errorMsgUpdate"
+      :error-msg="errorMsg.update"
       @onContainerClick="clickProvinsi"
       @onUpdateClick="updateProvinsi"
       @onDeleteClick="deleteProvinsi"
-      @clearErrorMsg="errorMsgUpdate = ''"
+      @clearErrorMsg="resetErrorMsg"
     />
 
     <div v-if="visibleKabupatenList">
@@ -22,9 +22,7 @@
             v-for="(kabupatenData, idx) in kabupatenList"
             :key="idx"
             :kabupaten-data="kabupatenData"
-            @child-updated="childUpdatedReload"
-            @child-deleted="loadKabupatenList"
-            ref="kabupatenRefs"
+            @onUnmount="resetVisibleKabupatenInfo"
         />
       </div>
       <ReloadTemplate
@@ -44,7 +42,7 @@
           :unique-id="'kabupaten' + provinsiId"
           :custom-margin-left="customKabupatenMarginLeft"
           :custom-grid-template-columns="customKabupatenGridTemplateColumns"
-          :error-msg="errorMsgAdd"
+          :error-msg="errorMsg.add"
           @onAddClick="addKabupaten"
       />
     </div>
@@ -53,14 +51,14 @@
 
 <script>
 import KabupatenComponent from "@/components/KabupatenComponent";
-import ContainerTemplate from "@/components/ContainerTemplate";
-import AddDataContainerTemplate from "@/components/AddDataContainerTemplate";
-import EmptyTemplate from "@/components/EmptyTemplate";
-import ReloadTemplate from "@/components/ReloadTemplate";
+import ContainerTemplate from "@/components/template/ContainerTemplate";
+import AddDataContainerTemplate from "@/components/template/AddDataContainerTemplate";
+import EmptyTemplate from "@/components/template/EmptyTemplate";
+import ReloadTemplate from "@/components/template/ReloadTemplate";
 
-import {kabupaten, provinsi} from "@/utils/api";
-import { mapGetters } from 'pinia';
-import { useMenuStore } from "@/store/index";
+import { kabupaten, provinsi } from "@/utils/api";
+import { mapActions, mapGetters, mapState } from 'pinia';
+import { useMenuStore, useProvinsiStore, useKabupatenStore } from "@/store";
 
 export default {
   name: "ProvinsiComponent",
@@ -80,7 +78,6 @@ export default {
     return {
       kabupatenList: [],
       visibleKabupatenList: false,
-      visibleProvinsiInfo: false,
       provinsiInfo: {},
       customGridTemplateColumns: {
         'grid-template-columns': '15% 75% 10%'
@@ -92,54 +89,56 @@ export default {
       customKabupatenMarginLeft: {
         'margin-left': '2%'
       },
-      errorMsgUpdate: '',
-      errorMsgAdd: '',
+      errorMsg: {},
       visibleReload: false
     }
   },
+  created() {
+    if (this.visibleProvinsiInfo) {
+      this.loadProvinsiInfo();
+    }
+  },
+  beforeUnmount() {
+    this.visibleKabupatenList = false;
+  },
   computed: {
     ...mapGetters(useMenuStore, ['isProvinsiMenu', 'isKabupatenMenu']),
+    ...mapState(useProvinsiStore, ['visibleProvinsiInfoList']),
+    ...mapState(useKabupatenStore, ['reloadKabupatenList', 'reloadKabupatenListWithId']),
     provinsiId() {
       return this.provinsiData.id;
     },
     provinsiName() {
       return this.provinsiData.name;
+    },
+    visibleProvinsiInfo() {
+      return this.visibleProvinsiInfoList[this.provinsiId];
     }
   },
   methods: {
     // Component Methods
+    ...mapActions(useProvinsiStore, ['triggerReloadProvinsiList', 'updateVisibleProvinsiInfo', 'removeVisibleProvinsiInfo']),
+    ...mapActions(useKabupatenStore, ['triggerReloadKabupatenList', 'removeVisibleKabupatenInfo']),
     clickProvinsi() {
-      this.resetErrorMsgAdd();
+      this.resetErrorMsg();
       if (!this.isProvinsiMenu) {
         this.visibleKabupatenList = !this.visibleKabupatenList;
         this.loadKabupatenList();
       } else {
-        this.loadProvinsiInfo();
-        this.visibleProvinsiInfo = !this.visibleProvinsiInfo;
+        if (this.visibleProvinsiInfo) {
+          this.updateVisibleProvinsiInfo(this.provinsiId, false);
+        } else {
+          this.loadProvinsiInfo();
+        }
       }
     },
-    childUpdatedReload(data) {
-      this.$emit('childUpdated', data);
-      if (!data.kecamatan) {
-        this.loadKabupatenList();
-      }
+    resetErrorMsg() {
+      this.errorMsg = {};
     },
-    childUpdatedReloadByParent(data) {
-      if (this.visibleKabupatenList && data.kecamatan) {
-        const idx = this.kabupatenList.findIndex((kabupaten) => kabupaten.id == data.kabupaten.id);
-        this.$refs.kabupatenRefs[idx].childUpdatedReloadByParent(data);
-      } else if (this.visibleKabupatenList && data.kabupaten) {
-        this.loadKabupatenList()
-          .then(() => {
-            const idx = this.kabupatenList.findIndex((kabupaten) => kabupaten.id == data.kabupaten.id);
-            this.$refs.kabupatenRefs[idx].childUpdatedReloadByParent(data);
-          });
-      } else if (this.visibleProvinsiInfo && data.provinsi) {
-        this.visibleProvinsiInfo = false;
+    resetVisibleKabupatenInfo(kabupatenId) {
+      if (!this.visibleKabupatenList) {
+        this.removeVisibleKabupatenInfo(kabupatenId);
       }
-    },
-    resetErrorMsgAdd() {
-      this.errorMsgAdd = '';
     },
 
     // API Methods
@@ -149,12 +148,13 @@ export default {
           id: this.provinsiId,
           name: this.provinsiName
         }
-      }
+      };
+      this.updateVisibleProvinsiInfo(this.provinsiId, true);
     },
     loadKabupatenList() {
-      return kabupaten.getAllWithProvinsiId({ provinsiId: this.provinsiId })
+      kabupaten.getAllWithProvinsiId({ provinsiId: this.provinsiId })
         .then(response => this.successGetAllKabupaten(response.data))
-        .catch(response => this.failGetAllKabupaten(response));
+        .catch(this.failGetAllKabupaten);
     },
     successGetAllKabupaten(data) {
       this.kabupatenList = data;
@@ -174,26 +174,25 @@ export default {
         .catch(this.failAddKabupaten);
     },
     successAddKabupaten() {
-      this.loadKabupatenList();
-      this.resetErrorMsgAdd();
+      this.triggerReloadKabupatenList({old: this.provinsiId, new: this.provinsiId});
+      this.resetErrorMsg();
     },
     failAddKabupaten(response) {
-      this.errorMsgAdd = response.response.data;
+      this.errorMsg.add = response.response.data;
     },
     updateProvinsi(data) {
       const requestBody = {
         newProvinsiName: data.provinsi.name
       };
       provinsi.update(data.provinsi.id, requestBody)
-        .then(() => this.successUpdateProvinsi(data))
+        .then(this.successUpdateProvinsi)
         .catch(this.failUpdateProvinsi);
     },
-    successUpdateProvinsi(data) {
-      this.$emit('childUpdated', data);
-      this.visibleProvinsiInfo = false;
+    successUpdateProvinsi() {
+      this.triggerReloadProvinsiList();
     },
     failUpdateProvinsi(response) {
-      this.errorMsgUpdate = response.response.data;
+      this.errorMsg.update = response.response.data;
     },
     deleteProvinsi() {
       provinsi.delete(this.provinsiId)
@@ -201,8 +200,8 @@ export default {
         .catch(this.failDeleteProvinsi);
     },
     successDeleteProvinsi() {
-      this.$emit('childDeleted');
-      this.visibleProvinsiInfo = false;
+      this.triggerReloadProvinsiList();
+      this.removeVisibleProvinsiInfo(this.provinsiId);
     },
     failDeleteProvinsi(response) {
       console.log('fail', response);
@@ -213,11 +212,22 @@ export default {
       if (newValue) {
         this.visibleKabupatenList = false;
       } else {
-        this.visibleProvinsiInfo = false;
+        this.updateVisibleProvinsiInfo(this.provinsiId, false);
       }
     },
     isKabupatenMenu() {
-      this.resetErrorMsgAdd();
+      this.resetErrorMsg();
+    },
+    reloadKabupatenList() {
+      if (this.visibleKabupatenList && 
+      (this.provinsiId == this.reloadKabupatenListWithId.old || this.provinsiId == this.reloadKabupatenListWithId.new)) {
+        this.loadKabupatenList();
+      }
+    },
+    provinsiData() {
+      if (this.visibleProvinsiInfo) {
+        this.loadProvinsiInfo();
+      }
     }
   }
 }

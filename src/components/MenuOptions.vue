@@ -28,7 +28,7 @@
 
 <script>
 import { mapActions } from 'pinia';
-import { useMenuStore } from "@/store/index";
+import { useMenuStore } from "@/store";
 
 export default {
   name: "MenuOptions",

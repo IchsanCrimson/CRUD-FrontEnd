@@ -9,11 +9,11 @@
         :info-data="kabupatenInfo"
         :custom-grid-template-columns="customGridTemplateColumns"
         :custom-margin-left="customMarginLeft"
-        :error-msg="errorMsgUpdate"
+        :error-msg="errorMsg.update"
         @onContainerClick="clickKabupaten"
         @onUpdateClick="updateKabupaten"
         @onDeleteClick="deleteKabupaten"
-        @clearErrorMsg="errorMsgUpdate = ''"
+        @clearErrorMsg="resetErrorMsg"
     />
 
     <div v-if="visibleKecamatanList">
@@ -22,9 +22,7 @@
             v-for="(kecamatanData, idx) in kecamatanList"
             :key="idx"
             :kecamatan-data="kecamatanData"
-            @child-updated="childUpdatedReload"
-            @child-deleted="loadKecamatanList"
-            ref="kecamatanRefs"
+            @onUmount="resetVisibleKecamatanInfo"
         />
       </div>
       <ReloadTemplate
@@ -44,7 +42,7 @@
           :unique-id="'kecamatan' + kabupatenId"
           :custom-margin-left="customKecamatanMarginLeft"
           :custom-grid-template-columns="customKecamatanGridTemplateColumns"
-          :error-msg="errorMsgAdd"
+          :error-msg="errorMsg.add"
           @onAddClick="addKecamatan"
       />
     </div>
@@ -53,14 +51,14 @@
 
 <script>
 import KecamatanComponent from "@/components/KecamatanComponent";
-import ContainerTemplate from "@/components/ContainerTemplate";
-import AddDataContainerTemplate from "@/components/AddDataContainerTemplate";
-import EmptyTemplate from "@/components/EmptyTemplate";
-import ReloadTemplate from "@/components/ReloadTemplate";
+import ContainerTemplate from "@/components/template/ContainerTemplate";
+import AddDataContainerTemplate from "@/components/template/AddDataContainerTemplate";
+import EmptyTemplate from "@/components/template/EmptyTemplate";
+import ReloadTemplate from "@/components/template/ReloadTemplate";
 
-import {kabupaten, kecamatan} from "@/utils/api";
-import { mapGetters } from 'pinia';
-import { useMenuStore } from "@/store/index";
+import { kabupaten, kecamatan } from "@/utils/api";
+import { mapActions, mapGetters, mapState } from 'pinia';
+import { useMenuStore, useKabupatenStore, useKecamatanStore } from "@/store";
 
 export default {
   name: "KabupatenComponent",
@@ -80,7 +78,6 @@ export default {
     return {
       kecamatanList: [],
       visibleKecamatanList: false,
-      visibleKabupatenInfo: false,
       kabupatenInfo: {},
       customGridTemplateColumns: {
         'grid-template-columns': '20% 70% 10%'
@@ -94,59 +91,64 @@ export default {
       customKecamatanMarginLeft: {
         'margin-left': '4%'
       },
-      errorMsgUpdate: '',
-      errorMsgAdd: '',
+      errorMsg: {},
       visibleReload: false
     }
   },
+  created() {
+    if (this.visibleKabupatenInfo) {
+      this.loadKabupatenInfo();
+    }
+  },
+  beforeUnmount() {
+    this.visibleKecamatanList = false;
+    this.$emit('onUnmount', this.kabupatenId);
+  },
   computed: {
     ...mapGetters(useMenuStore, ['isKabupatenMenu', 'isKecamatanMenu']),
+    ...mapState(useKabupatenStore, ['visibleKabupatenInfoList']),
+    ...mapState(useKecamatanStore, ['reloadKecamatanList', 'reloadKecamatanListWithId']),
     kabupatenId() {
       return this.kabupatenData.id;
     },
     kabupatenName() {
       return this.kabupatenData.name;
+    },
+    visibleKabupatenInfo() {
+      return this.visibleKabupatenInfoList[this.kabupatenId];
     }
   },
   methods: {
     // Component Methods
+    ...mapActions(useKabupatenStore, ['triggerReloadKabupatenList', 'updateVisibleKabupatenInfo', 'removeVisibleKabupatenInfo']),
+    ...mapActions(useKecamatanStore, ['triggerReloadKecamatanList', 'removeVisibleKecamatanInfo']),
     clickKabupaten() {
-      this.resetErrorMsgAdd();
+      this.resetErrorMsg();
       if (this.isKecamatanMenu) {
         this.visibleKecamatanList = !this.visibleKecamatanList;
         this.loadKecamatanList();
       } else {
         if (this.visibleKabupatenInfo) {
-          this.visibleKabupatenInfo = false;
+          this.updateVisibleKabupatenInfo(this.kabupatenId, false);
         } else {
           this.loadKabupatenInfo();
         }
       }
     },
-    childUpdatedReload(data) {
-      this.$emit('childUpdated', data);
-      this.loadKecamatanList();
+    resetErrorMsg() {
+      this.errorMsg = {};
     },
-    childUpdatedReloadByParent(data) {
-      if (this.visibleKecamatanList && data.kecamatan) {
-        this.loadKecamatanList()
-          .then(() => {
-            const idx = this.kecamatanList.findIndex((kecamatan) => kecamatan.id == data.kecamatan.id);
-            this.$refs.kecamatanRefs[idx].childUpdatedReloadByParent(data);
-          });
-      } else if (this.visibleKabupatenInfo && data.kabupaten) {
-        this.visibleKabupatenInfo = false;
+    resetVisibleKecamatanInfo(kecamatanId) {
+      if (!this.visibleKecamatanList) {
+        this.removeVisibleKecamatanInfo(kecamatanId);
       }
-    },
-    resetErrorMsgAdd() {
-      this.errorMsgAdd = '';
     },
 
     // API Methods
     loadKecamatanList() {
-      return kecamatan.getAllWithKabupatenId({ kabupatenId: this.kabupatenId })
+      kecamatan.getAllWithKabupatenId({ kabupatenId: this.kabupatenId })
         .then(response => this.successGetAllKecamatan(response.data))
-        .catch(response => this.failGetAllKecamatan(response));
+        .catch(this.failGetAllKecamatan);
     },
     successGetAllKecamatan(data) {
       this.kecamatanList = data;
@@ -171,7 +173,7 @@ export default {
           name:  data.name
         },
       };
-      this.visibleKabupatenInfo = true;
+      this.updateVisibleKabupatenInfo(this.kabupatenId, true);
     },
     failGetKabupatenInfo(response) {
       console.log('fail', response);
@@ -187,11 +189,11 @@ export default {
         .catch(this.failAddKecamatan);
     },
     successAddKecamatan() {
-      this.loadKecamatanList();
-      this.resetErrorMsgAdd();
+      this.triggerReloadKecamatanList({old: this.kabupatenId, new: this.kabupatenId});
+      this.resetErrorMsg();
     },
     failAddKecamatan(response) {
-      this.errorMsgAdd = response.response.data;
+      this.errorMsg.add = response.response.data;
     },
     updateKabupaten(data) {
       const requestBody = {
@@ -199,15 +201,15 @@ export default {
         newKabupatenName: data.kabupaten.name
       };
       kabupaten.update(data.kabupaten.id, requestBody)
-        .then(() => this.successUpdateKabupaten(data))
+        .then(() => this.successUpdateKabupaten(requestBody.provinsiId))
         .catch(this.failUpdateKabupaten);
     },
-    successUpdateKabupaten(data) {
-      this.$emit('childUpdated', data);
-      this.visibleKabupatenInfo = false;
+    successUpdateKabupaten(newId) {
+      const oldId = this.kabupatenInfo.provinsi.id;
+      this.triggerReloadKabupatenList({old: oldId, new: newId});
     },
     failUpdateKabupaten(response) {
-      this.errorMsgUpdate = response.response.data;
+      this.errorMs.update = response.response.data;
     },
     deleteKabupaten() {
       kabupaten.delete(this.kabupatenId)
@@ -215,8 +217,9 @@ export default {
         .catch(this.failDeleteKabupaten);
     },
     successDeleteKabupaten() {
-      this.$emit('childDeleted');
-      this.visibleKabupatenInfo = false;
+      const provinsiId = this.kabupatenInfo.provinsi.id;
+      this.triggerReloadKabupatenList({old: provinsiId, new: provinsiId});
+      this.removeVisibleKabupatenInfo(this.kabupatenId);
     },
     failDeleteKabupaten(response) {
       console.log('fail', response);
@@ -227,11 +230,22 @@ export default {
       if (newValue) {
         this.visibleKecamatanList = false;
       } else {
-        this.visibleKabupatenInfo = false;
+        this.updateVisibleKabupatenInfo(this.kabupatenId, false);
       }
     },
     isKecamatanMenu() {
-      this.resetErrorMsgAdd();
+      this.resetErrorMsg();
+    },
+    reloadKecamatanList() {
+      if (this.visibleKecamatanList && 
+      (this.kabupatenId == this.reloadKecamatanListWithId.old || this.kabupatenId == this.reloadKecamatanListWithId.new)) {
+        this.loadKecamatanList();
+      }
+    },
+    kabupatenData() {
+      if (this.visibleKabupatenInfo) {
+        this.loadKabupatenInfo();
+      }
     }
   }
 }
